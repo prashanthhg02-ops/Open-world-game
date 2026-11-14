@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#172b25">
+  <title>Verdant Reach — A Little Open World</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      background: #172b25;
+      color: #f5f0d9;
+      font-synthesis: none;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      background:
+        radial-gradient(ellipse at 50% 40%, rgba(91, 128, 83, .25), transparent 58%),
+        #172b25;
+    }
+    .game-shell {
+      width: min(1120px, 100%);
+      border: 1px solid rgba(238, 225, 175, .24);
+      border-radius: 18px;
+      overflow: hidden;
+      background: #233a30;
+      box-shadow: 0 24px 80px #09110ed9, 0 0 0 5px #101e19;
+    }
+    .topbar {
+      height: 66px;
+      padding: 0 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      background: linear-gradient(90deg, #253d32, #1d332b);
+      border-bottom: 1px solid #e8ddb52b;
+    }
+    .brand { display: flex; align-items: center; gap: 11px; }
+    .brand-mark { font-size: 25px; filter: drop-shadow(0 2px 2px #07100c); }
+    h1 { margin: 0; font-size: 17px; letter-spacing: .13em; text-transform: uppercase; }
+    .subtitle { margin-top: 3px; color: #c4c6a5; font: 11px "Segoe UI", sans-serif; letter-spacing: .08em; }
+    .world-clock { color: #e7d99e; font-size: 13px; letter-spacing: .06em; white-space: nowrap; }
+    .stage { position: relative; background: #68884e; }
+    canvas { display: block; width: 100%; aspect-ratio: 16 / 9; image-rendering: pixelated; }
+    .hud { position: absolute; inset: 0; pointer-events: none; }
+    .quest-card, .map-card, .hint, .toast, .dialogue {
+      border: 1px solid #f6e8bd45;
+      background: #14251fe0;
+      box-shadow: 0 5px 18px #09120d55;
+      backdrop-filter: blur(7px);
+    }
+    .quest-card {
+      position: absolute; left: 18px; top: 18px; padding: 12px 15px;
+      width: 218px; border-radius: 11px;
+    }
+    .eyebrow { color: #d7bd73; font: 10px "Segoe UI", sans-serif; letter-spacing: .15em; text-transform: uppercase; }
+    .quest-title { margin-top: 5px; font-size: 15px; font-weight: 700; }
+    .quest-copy { margin-top: 5px; color: #d4d7bd; font: 12px/1.45 "Segoe UI", sans-serif; }
+    .progress { height: 4px; overflow: hidden; margin-top: 10px; border-radius: 5px; background: #ffffff20; }
+    .progress-fill { width: 0%; height: 100%; background: #e9c96e; transition: width .25s; }
+    .map-card {
+      position: absolute; right: 18px; top: 18px; width: 142px; height: 142px;
+      padding: 7px; border-radius: 12px;
+    }
+    #minimap { width: 100%; height: 100%; border-radius: 7px; }
+    .hint {
+      position: absolute; left: 50%; bottom: 17px; transform: translateX(-50%);
+      padding: 8px 13px; border-radius: 9px; color: #e2e4d1;
+      font: 12px "Segoe UI", sans-serif; white-space: nowrap;
+    }
+    kbd {
+      display: inline-block; min-width: 20px; margin: 0 1px; padding: 2px 5px;
+      border: 1px solid #f5e8bd55; border-radius: 4px; text-align: center;
+      color: #f5db8c; font: 10px "Segoe UI", sans-serif;
+    }
+    .toast {
+      position: absolute; left: 50%; top: 23%; transform: translate(-50%, -5px);
+      padding: 10px 16px; border-radius: 10px; color: #f4e4ae;
+      font-size: 13px; opacity: 0; transition: opacity .2s, transform .2s;
+    }
+    .toast.visible { opacity: 1; transform: translate(-50%, 0); }
+    .dialogue {
+      position: absolute; left: 50%; bottom: 60px; transform: translateX(-50%);
+      width: min(440px, calc(100% - 32px)); padding: 13px 17px;
+      border-radius: 11px; display: none; text-align: center;
+      color: #e9e9d8; font: 13px/1.5 "Segoe UI", sans-serif;
+    }
+    .dialogue.visible { display: block; }
+    .footer {
+      min-height: 48px; padding: 0 18px; display: flex; align-items: center;
+      justify-content: space-between; gap: 12px; color: #bec8b0;
+      font: 11px "Segoe UI", sans-serif;
+    }
+    .footer span:last-child { color: #d6bd74; }
+    @media (max-width: 650px) {
+      body { padding: 0; }
+      .game-shell { border: 0; border-radius: 0; min-height: 100vh; display: flex; flex-direction: column; justify-content: center; }
+      .topbar { height: 56px; padding: 0 13px; }
+      h1 { font-size: 14px; }
+      .subtitle { font-size: 9px; }
+      .world-clock { font-size: 11px; }
+      .quest-card { top: 8px; left: 8px; width: 170px; padding: 8px 10px; }
+      .quest-title { font-size: 12px; }
+      .quest-copy { font-size: 10px; }
+      .map-card { top: 8px; right: 8px; width: 92px; height: 92px; padding: 5px; }
+      .hint { bottom: 8px; padding: 7px 8px; font-size: 10px; }
+      .footer { padding: 0 10px; font-size: 9px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="game-shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">🌿</span>
+        <div><h1>Verdant Reach</h1><div class="subtitle">A LITTLE OPEN WORLD</div></div>
+      </div>
+      <div class="world-clock" id="clock">☀ &nbsp;Morning</div>
+    </header>
+    <section class="stage" aria-label="Game world">
+      <canvas id="game" aria-label="Explore the world with the arrow keys or WASD"></canvas>
+      <div class="hud">
+        <div class="quest-card">
+          <div class="eyebrow">A village request</div>
+          <div class="quest-title">The lost fireflies</div>
+          <div class="quest-copy" id="quest-copy">Find the five glowing fireflies scattered across the Reach.</div>
+          <div class="progress"><div class="progress-fill" id="progress"></div></div>
+        </div>
+        <div class="map-card"><canvas id="minimap" aria-label="World map"></canvas></div>
+        <div class="toast" id="toast" role="status"></div>
+        <div class="dialogue" id="dialogue"></div>
+        <div class="hint"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp; <kbd>Shift</kbd> run &nbsp; <kbd>E</kbd> talk / gather</div>
+      </div>
+    </section>
+    <footer class="footer"><span>Wander freely. The paths are only suggestions.</span><span id="location">Willowmere</span></footer>
+  </main>
+  <script>
+    (() => {
+      "use strict";
+      const canvas = document.getElementById("game");
+      const ctx = canvas.getContext("2d");
+      const mapCanvas = document.getElementById("minimap");
+      const mapCtx = mapCanvas.getContext("2d");
+      const WORLD = { width: 3200, height: 2200, tile: 64 };
+      const keys = new Set();
+      const player = { x: 1580, y: 1120, radius: 11, facing: 1, step: 0 };
+      const villager = { x: 1500, y: 1080, name: "Mara" };
+      const fireflies = [
+        { x: 570, y: 390, found: false, name: "Mosslight Glade" },
+        { x: 2580, y: 510, found: false, name: "Sunspoke Ridge" },
+        { x: 610, y: 1780, found: false, name: "Fernwater Bend" },
+        { x: 2670, y: 1760, found: false, name: "Old Oak Hollow" },
+        { x: 2220, y: 1120, found: false, name: "Bluebell Meadow" }
+      ];
+      const pointsOfInterest = [
+        { x: 570, y: 390, name: "Mosslight Glade" },
+        { x: 2580, y: 510, name: "Sunspoke Ridge" },
+        { x: 610, y: 1780, name: "Fernwater Bend" },
+        { x: 2670, y: 1760, name: "Old Oak Hollow" },
+        { x: 2220, y: 1120, name: "Bluebell Meadow" }
+      ];
+      const camera = { x: 0, y: 0 };
+      const clock = document.getElementById("clock");
+      const toast = document.getElementById("toast");
+      const dialogue = document.getElementById("dialogue");
+      let toastTimer = 0;
+      let dialogueTimer = 0;
+      let elapsed = 0;
+      let lastTime = 0;
+      let gameWidth = 960;
+      let gameHeight = 540;
+
+      function hash(x, y) {
+        let n = (x * 374761393 + y * 668265263 + 1442695041) | 0;
+        n = Math.imul(n ^ (n >>> 13), 1274126177);
+        return ((n ^ (n >>> 16)) >>> 0) / 4294967295;
+      }
+      function resize() {
+        const rect = canvas.getBoundingClientRect();
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.round(rect.width * dpr);
+        canvas.height = Math.round(rect.height * dpr);
+        gameWidth = rect.width;
+        gameHeight = rect.height;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        mapCanvas.width = 256;
+        mapCanvas.height = 256;
+        drawMap();
+      }
+      window.addEventListener("resize", resize);
+      function lakeAt(x, y) {
+        const dx = (x - 1640) / 390;
+        const dy = (y - 730) / 265;
+        return dx * dx + dy * dy < 1 + Math.sin(x * 0.012) * 0.035 + Math.cos(y * 0.018) * 0.035;
+      }
+      function inVillage(x, y) {
+        return x > 1340 && x < 1660 && y > 960 && y < 1270;
+      }
+      function pathAt(x, y) {
+        const main = Math.abs(y - (1120 + Math.sin(x / 420) * 125)) < 22;
+        const branch = Math.abs(x - (1540 + Math.sin(y / 350) * 80)) < 18;
+        const gladePath = Math.abs(y - (390 + (x - 570) * 0.16)) < 12 && x < 1000 && x > 480;
+        const ridgePath = Math.abs(y - (510 - (x - 2580) * 0.1)) < 13 && x > 2200 && x < 2900;
+        const southPath = Math.abs(y - (1780 - (x - 610) * 0.08)) < 12 && x < 1100 && y > 1580;
+        return main || branch || gladePath || ridgePath || southPath;
+      }
+      function terrainAt(x, y, tx, ty) {
+        if (lakeAt(x, y)) return "#5d9c99";
+        if (pathAt(x, y) || inVillage(x, y)) return "#b59a68";
+        const noise = hash(tx, ty);
+        if (noise > 0.9) return "#81975b";
+        if (noise < 0.09) return "#6d8e50";
+        return "#789554";
+      }
+      function drawTerrain() {
+        const tile = WORLD.tile;
+        const startX = Math.floor(camera.x / tile);
+        const startY = Math.floor(camera.y / tile);
+        const endX = Math.ceil((camera.x + gameWidth) / tile);
+        const endY = Math.ceil((camera.y + gameHeight) / tile);
+        for (let ty = startY; ty <= endY; ty++) {
+          for (let tx = startX; tx <= endX; tx++) {
+            if (tx < 0 || ty < 0 || tx * tile >= WORLD.width || ty * tile >= WORLD.height) continue;
+            const x = tx * tile - camera.x;
+            const y = ty * tile - camera.y;
+            ctx.fillStyle = terrainAt(tx * tile + 32, ty * tile + 32, tx, ty);
+            ctx.fillRect(x, y, tile + 1, tile + 1);
+            const speck = hash(tx + 700, ty - 110);
+            if (speck > 0.43 && !lakeAt(tx * tile + 32, ty * tile + 32) && !pathAt(tx * tile + 32, ty * tile + 32)) {
+              ctx.fillStyle = speck > 0.82 ? "#d1c37955" : "#c2cf7650";
+              ctx.beginPath();
+              ctx.ellipse(x + hash(tx, ty + 5) * 48 + 8, y + hash(tx + 5, ty) * 48 + 8, 2, 1.3, 0.4, 0, Math.PI * 2);
+              ctx.fill();
+            }
+            if (lakeAt(tx * tile + 32, ty * tile + 32)) {
+              ctx.strokeStyle = "#b7d5b654";
+              ctx.beginPath();
+              ctx.moveTo(x + 13, y + 22 + hash(tx, ty) * 18);
+              ctx.lineTo(x + 30, y + 22 + hash(tx, ty) * 18);
+              ctx.stroke();
+            }
+          }
+        }
+      }
+      function drawTree(x, y, size, tint) {
+        const sx = x - camera.x;
+        const sy = y - camera.y;
+        if (sx < -60 || sy < -70 || sx > gameWidth + 60 || sy > gameHeight + 70) return;
+        ctx.fillStyle = "#233e2e66";
+        ctx.beginPath();
+        ctx.ellipse(sx + 5, sy + 7, size * 0.53, size * 0.24, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#694f34";
+        ctx.fillRect(sx - 3, sy - 4, 6, 13);
+        ctx.fillStyle = tint;
+        ctx.beginPath();
+        ctx.arc(sx, sy - 11, size * 0.42, 0, Math.PI * 2);
+        ctx.arc(sx - size * 0.23, sy - 5, size * 0.29, 0, Math.PI * 2);
+        ctx.arc(sx + size * 0.22, sy - 5, size * 0.3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#d1d79130";
+        ctx.beginPath();
+        ctx.arc(sx - size * 0.1, sy - size * 0.27, size * 0.13, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      function drawRock(x, y, size) {
+        const sx = x - camera.x;
+        const sy = y - camera.y;
+        if (sx < -30 || sy < -30 || sx > gameWidth + 30 || sy > gameHeight + 30) return;
+        ctx.fillStyle = "#34453555";
+        ctx.beginPath(); ctx.ellipse(sx + 2, sy + 4, size * 0.9, size * 0.48, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#8b967a";
+        ctx.beginPath();
+        ctx.moveTo(sx - size, sy + size * .25);
+        ctx.lineTo(sx - size * .65, sy - size * .58);
+        ctx.lineTo(sx + size * .12, sy - size * .8);
+        ctx.lineTo(sx + size, sy - size * .12);
+        ctx.lineTo(sx + size * .62, sy + size * .42);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#c2c8a05c";
+        ctx.fillRect(sx - size * .38, sy - size * .48, size * .65, 2);
+      }
+      function drawHouse(x, y, color, scale) {
+        const sx = x - camera.x;
+        const sy = y - camera.y;
+        ctx.fillStyle = "#24382c70";
+        ctx.fillRect(sx - 19 * scale + 4, sy - 13 * scale + 5, 38 * scale, 29 * scale);
+        ctx.fillStyle = "#d6c69a";
+        ctx.fillRect(sx - 19 * scale, sy - 14 * scale, 38 * scale, 27 * scale);
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(sx - 25 * scale, sy - 12 * scale);
+        ctx.lineTo(sx, sy - 31 * scale);
+        ctx.lineTo(sx + 25 * scale, sy - 12 * scale);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#72563a";
+        ctx.fillRect(sx - 5 * scale, sy, 10 * scale, 13 * scale);
+        ctx.fillStyle = "#9cb59a";
+        ctx.fillRect(sx - 14 * scale, sy - 7 * scale, 6 * scale, 6 * scale);
+        ctx.fillRect(sx + 8 * scale, sy - 7 * scale, 6 * scale, 6 * scale);
+      }
+      function drawWorldObjects() {
+        const tile = WORLD.tile;
+        const startX = Math.max(0, Math.floor(camera.x / tile) - 1);
+        const startY = Math.max(0, Math.floor(camera.y / tile) - 1);
+        const endX = Math.min(Math.ceil(WORLD.width / tile), Math.ceil((camera.x + gameWidth) / tile) + 1);
+        const endY = Math.min(Math.ceil(WORLD.height / tile), Math.ceil((camera.y + gameHeight) / tile) + 1);
+        const objects = [];
+        for (let ty = startY; ty <= endY; ty++) {
+          for (let tx = startX; tx <= endX; tx++) {
+            const r = hash(tx + 1200, ty + 300);
+            const x = tx * tile + hash(tx + 47, ty + 5) * tile;
+            const y = ty * tile + hash(tx + 5, ty + 47) * tile;
+            if (r > .48 && !lakeAt(x, y) && !pathAt(x, y) && !inVillage(x, y)) {
+              const tint = ["#466c43", "#52794a", "#587948", "#426541"][Math.floor(hash(tx, ty + 81) * 4)];
+              objects.push({ y, draw: () => drawTree(x, y, 29 + hash(tx + 9, ty) * 15, tint) });
+            } else if (r < .09 && !lakeAt(x, y) && !pathAt(x, y)) {
+              objects.push({ y, draw: () => drawRock(x, y, 10 + hash(tx, ty) * 6) });
+            }
+          }
+        }
+        [[1430, 1010, "#8c6544"], [1575, 1000, "#9a6b45"], [1430, 1160, "#7b614b"], [1590, 1195, "#a17b50"]]
+          .forEach((house, i) => objects.push({ y: house[1], draw: () => drawHouse(house[0], house[1], house[2], i === 1 ? 1.13 : 1) }));
+        objects.push({ y: villager.y, draw: drawVillager });
+        fireflies.forEach((f, i) => { if (!f.found) objects.push({ y: f.y, draw: () => drawFirefly(f, i) }); });
+        objects.push({ y: player.y, draw: drawPlayer });
+        objects.sort((a, b) => a.y - b.y);
+        objects.forEach(object => object.draw());
+      }
+      function drawVillager() {
+        const x = villager.x - camera.x, y = villager.y - camera.y;
+        ctx.fillStyle = "#24382c66";
+        ctx.beginPath(); ctx.ellipse(x, y + 4, 10, 5, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#d4a47b";
+        ctx.beginPath(); ctx.arc(x, y - 10, 7, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#bd7452"; ctx.fillRect(x - 7, y - 3, 14, 14);
+        ctx.fillStyle = "#e7d398"; ctx.fillRect(x - 8, y - 15, 16, 5);
+        ctx.fillStyle = "#f4e3a9"; ctx.font = "11px 'Segoe UI', sans-serif";
+        ctx.textAlign = "center"; ctx.fillText("Mara", x, y - 26);
+      }
+      function drawPlayer() {
+        const x = player.x - camera.x, y = player.y - camera.y;
+        const bob = Math.sin(player.step) * 1.5;
+        ctx.fillStyle = "#20382e77";
+        ctx.beginPath(); ctx.ellipse(x, y + 5, 11, 6, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#d3a078";
+        ctx.beginPath(); ctx.arc(x, y - 10 + bob, 7, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#e2d6af";
+        ctx.beginPath(); ctx.arc(x, y - 12 + bob, 7, Math.PI, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#4c8b73";
+        ctx.beginPath(); ctx.moveTo(x - 9, y - 3 + bob); ctx.lineTo(x + 9, y - 3 + bob); ctx.lineTo(x + 7, y + 10); ctx.lineTo(x - 7, y + 10); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#263b31";
+        ctx.fillRect(x - 5, y + 9, 4, 6); ctx.fillRect(x + 2, y + 9, 4, 6);
+      }
+      function drawFirefly(f, index) {
+        const x = f.x - camera.x, y = f.y - camera.y;
+        const glow = 7 + Math.sin(elapsed * 3 + index) * 2;
+        const gradient = ctx.createRadialGradient(x, y - 8, 1, x, y - 8, glow * 2.4);
+        gradient.addColorStop(0, "#fff5a9aa");
+        gradient.addColorStop(1, "#f5d56800");
+        ctx.fillStyle = gradient;
+        ctx.beginPath(); ctx.arc(x, y - 8, glow * 2.4, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#fff1a0";
+        ctx.beginPath(); ctx.arc(x, y - 8, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#fff0bc";
+        ctx.font = "10px 'Segoe UI', sans-serif"; ctx.textAlign = "center";
+        ctx.fillText("✦", x, y - 18);
+      }
+      function drawMap() {
+        const w = mapCanvas.width, h = mapCanvas.height;
+        mapCtx.fillStyle = "#789554"; mapCtx.fillRect(0, 0, w, h);
+        mapCtx.fillStyle = "#5d9c99";
+        mapCtx.beginPath(); mapCtx.ellipse(1640 / WORLD.width * w, 730 / WORLD.height * h, 390 / WORLD.width * w, 265 / WORLD.height * h, 0, 0, Math.PI * 2); mapCtx.fill();
+        mapCtx.strokeStyle = "#c4ab70"; mapCtx.lineWidth = 3;
+        mapCtx.beginPath();
+        mapCtx.moveTo(0, 1120 / WORLD.height * h);
+        mapCtx.bezierCurveTo(w * .3, h * .48, w * .67, h * .55, w, h * .52);
+        mapCtx.stroke();
+        mapCtx.fillStyle = "#d3bd85"; mapCtx.fillRect(1340 / WORLD.width * w, 960 / WORLD.height * h, 320 / WORLD.width * w, 310 / WORLD.height * h);
+        pointsOfInterest.forEach((p, i) => {
+          mapCtx.fillStyle = fireflies[i].found ? "#b9c9a0" : "#ffe992";
+          mapCtx.beginPath(); mapCtx.arc(p.x / WORLD.width * w, p.y / WORLD.height * h, 3, 0, Math.PI * 2); mapCtx.fill();
+        });
+        mapCtx.fillStyle = "#f5eee0";
+        mapCtx.beginPath(); mapCtx.arc(player.x / WORLD.width * w, player.y / WORLD.height * h, 4, 0, Math.PI * 2); mapCtx.fill();
+        mapCtx.strokeStyle = "#fff9e2"; mapCtx.lineWidth = 1;
+        mapCtx.strokeRect(camera.x / WORLD.width * w, camera.y / WORLD.height * h, gameWidth / WORLD.width * w, gameHeight / WORLD.height * h);
+      }
+      function say(message) {
+        toast.textContent = message;
+        toast.classList.add("visible");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove("visible"), 2300);
+      }
+      function showDialogue(message) {
+        dialogue.textContent = message;
+        dialogue.classList.add("visible");
+        clearTimeout(dialogueTimer);
+        dialogueTimer = setTimeout(() => dialogue.classList.remove("visible"), 4200);
+      }
+      function interact() {
+        const villagerDistance = Math.hypot(player.x - villager.x, player.y - villager.y);
+        if (villagerDistance < 65) {
+          const found = fireflies.filter(f => f.found).length;
+          if (found === fireflies.length) {
+            showDialogue("Mara smiles as the fireflies swirl above Willowmere. “You brought the night back to life. Thank you, friend.”");
+            document.getElementById("quest-copy").textContent = "The Reach is glowing again. Take your time and enjoy the world.";
+          } else if (found === 0) {
+            showDialogue("“The fireflies have wandered far from home,” Mara says. “Could you find five and guide them back to Willowmere?”");
+          } else {
+            showDialogue("“There are " + (fireflies.length - found) + " more out there. Look for a little golden glow, especially near the old paths.”");
+          }
+          return;
+        }
+        const nearest = fireflies.filter(f => !f.found).map(f => ({ firefly: f, distance: Math.hypot(player.x - f.x, player.y - f.y) }))
+          .sort((a, b) => a.distance - b.distance)[0];
+        if (nearest && nearest.distance < 54) {
+          nearest.firefly.found = true;
+          const count = fireflies.filter(f => f.found).length;
+          document.getElementById("progress").style.width = (count / fireflies.length * 100) + "%";
+          document.getElementById("quest-copy").textContent = count === fireflies.length
+            ? "All five are found! Return to Mara in Willowmere."
+            : count + " of 5 found. Keep exploring the Reach.";
+          drawMap();
+          say(count === fireflies.length ? "The last firefly found! Return to Mara." : "Firefly found near " + nearest.firefly.name + " · " + count + "/5");
+          return;
+        }
+        say("Nothing nearby to gather. Follow the little golden lights.");
+      }
+      function move(dt) {
+        let dx = 0, dy = 0;
+        if (keys.has("w") || keys.has("arrowup")) dy--;
+        if (keys.has("s") || keys.has("arrowdown")) dy++;
+        if (keys.has("a") || keys.has("arrowleft")) dx--;
+        if (keys.has("d") || keys.has("arrowright")) dx++;
+        const length = Math.hypot(dx, dy) || 1;
+        const speed = keys.has("shift") ? 255 : 170;
+        dx = dx / length * speed * dt;
+        dy = dy / length * speed * dt;
+        const nextX = Math.max(player.radius, Math.min(WORLD.width - player.radius, player.x + dx));
+        const nextY = Math.max(player.radius, Math.min(WORLD.height - player.radius, player.y + dy));
+        if (!lakeAt(nextX, player.y)) player.x = nextX;
+        if (!lakeAt(player.x, nextY)) player.y = nextY;
+        if (dx || dy) {
+          player.step += dt * (keys.has("shift") ? 15 : 10);
+          if (dx) player.facing = Math.sign(dx);
+        }
+      }
+      function update(dt) {
+        elapsed += dt;
+        move(dt);
+        camera.x = Math.max(0, Math.min(WORLD.width - gameWidth, player.x - gameWidth / 2));
+        camera.y = Math.max(0, Math.min(WORLD.height - gameHeight, player.y - gameHeight / 2));
+        const phase = (elapsed / 65) % 1;
+        const hour = Math.floor((8 + phase * 14) % 24);
+        clock.textContent = hour < 11 ? "☀  Morning" : hour < 17 ? "☀  Afternoon" : "☾  Evening";
+        const poi = pointsOfInterest.map(p => ({ p, d: Math.hypot(player.x - p.x, player.y - p.y) })).sort((a, b) => a.d - b.d)[0];
+        document.getElementById("location").textContent = poi.d < 250 ? poi.p.name : player.x > 1280 && player.x < 1740 && player.y > 900 && player.y < 1320 ? "Willowmere" : "The Reach";
+      }
+      function render() {
+        ctx.clearRect(0, 0, gameWidth, gameHeight);
+        drawTerrain();
+        drawWorldObjects();
+        drawMap();
+      }
+      function frame(time) {
+        const dt = Math.min((time - lastTime) / 1000 || 0, .04);
+        lastTime = time;
+        update(dt);
+        render();
+        requestAnimationFrame(frame);
+      }
+      window.addEventListener("keydown", event => {
+        const key = event.key.toLowerCase();
+        if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(key)) event.preventDefault();
+        keys.add(key);
+        if (key === "e" && !event.repeat) interact();
+      });
+      window.addEventListener("keyup", event => keys.delete(event.key.toLowerCase()));
+      window.addEventListener("blur", () => keys.clear());
+      resize();
+      requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>
